@@ -16,4 +16,21 @@ CHIP RAM64 {
 
     PARTS:
     // Put your code here:
+    //16bitのレジスターを8つ持つRAM8を8つ並べたもの
+    // address => xxxyyyだとしたら、xxxはRAM8を選ぶための情報であり、yyyはRAM8内のレジスターを選ぶための情報
+    RAM8(in=in, load=i0, address=address[3..5], out=o0);
+    RAM8(in=in, load=i1, address=address[3..5], out=o1);
+    RAM8(in=in, load=i2, address=address[3..5], out=o2);
+    RAM8(in=in, load=i3, address=address[3..5], out=o3);
+    RAM8(in=in, load=i4, address=address[3..5], out=o4);
+    RAM8(in=in, load=i5, address=address[3..5], out=o5);
+    RAM8(in=in, load=i6, address=address[3..5], out=o6);
+    RAM8(in=in, load=i7, address=address[3..5], out=o7);
+
+    //アドレスにしたがった処理
+    // addressの前半部の3bitの情報を利用し、情報を書き込む対象のRAM8を決める
+    DMux8Way(in=load, sel=address[0..2], a=i0, b=i1, c=i2, d=i3, e=i4, f=i5, g=i6, h=i7);
+    // addressの前半部の3bitの情報を利用し、情報を取得するするRAM8を決める。
+    Mux8Way16(a=o0, b=o1, c=o2, d=o3, e=o4, f=o5, g=o6, h=o7, sel=address[0..2], out=out);
 }
+

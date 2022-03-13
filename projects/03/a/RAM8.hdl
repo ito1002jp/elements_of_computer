@@ -16,4 +16,19 @@ CHIP RAM8 {
 
     PARTS:
     // Put your code here:
+    // 16のレジスタを8つ並べたもの
+    Register(in=in, load=in0, out=w0);    
+    Register(in=in, load=in1, out=w1);
+    Register(in=in, load=in2, out=w2);
+    Register(in=in, load=in3, out=w3);
+    Register(in=in, load=in4, out=w4);
+    Register(in=in, load=in5, out=w5);
+    Register(in=in, load=in6, out=w6);
+    Register(in=in, load=in7, out=w7);
+
+    // 直接アクセスロジック 
+    // load=1だった場合、指定されたregsiterに値w書き込む
+    DMux8Way(in=load, sel=address, a=in0,b=in1,c=in2,d=in3,e=in4,f=in5,g=in6,h=in7);
+    // addressに指定されたregisterの値を返す
+    Mux8Way16(a=w0,b=w1,c=w2,d=w3,e=w4,f=w5,g=w6,h=w7,sel=address,out=out);
 }
