@@ -28,4 +28,13 @@ CHIP Memory {
 
     PARTS:
     // Put your code here:
+    RAM16K(in=in, load=loadM, address=address[0..13], out=oMemory);
+    Screen(in=in, load=loadS, address=address[0..12], out=oScreen); //8Kメモリと同じ
+    Keyboard(out=oKeyboard);
+    
+    //アドレスにしたがった処理
+    // どこに書き込むか決める
+    DMux(in=load, sel=address[14], a=loadM, b=loadS);
+    // どこから読み込むか決める
+    Mux4Way16(a=oMemory, b=oMemory, c=oScreen, d=oKeyboard, sel=address[13..14], out=out);
 }

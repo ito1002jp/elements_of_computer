@@ -20,7 +20,7 @@
  * they are affected instantaneously by the execution of the current 
  * instruction. The addressM and pc outputs are clocked: although they 
  * are affected by the execution of the current instruction, they commit 
- * to their new values only in the next time step. If reset==1 then the 
+*$jj to their new values only in the next time step. If reset==1 then the 
  * CPU jumps to address 0 (i.e. pc is set to 0 in next time step) rather 
  * than to the address resulting from executing the current instruction. 
  */
@@ -40,4 +40,50 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    // //decoder (i xx a cccccc ddd jjj)
+
+    // A命令の場合
+    // i => 0
+    // xxaccccccdddjjj => 特定の値
+    // Aレジスタに特定の値を格納
+
+    // A命令の場合
+    // ixx => 111
+    // acccccc => 計算を行う関数
+    // ddd => 計算実行結果の格納場所
+    // jjj => 計算後何を行うか？
+
+    //decode
+    // decode instruction
+    And(a=instruction[15],b=true,out=isCInst);
+    Not(in=isCInst, out=isAInst);
+    And(a=instruction[12], b=isCInst, out=isMInst);
+    // decode dest
+    And(a=instruction[5], b=isCInst, out=storeA);
+    And(a=instruction[4], b=isCInst, out=storeD);
+    And(a=instruction[3], b=isCInst, out=storeM, out=writeM);
+    // decode jump
+    And(a=instruction[2], b=isCInst, out=isJLTInst);
+    And(a=instruction[1], b=isCInst, out=isJEQInst);
+    And(a=instruction[0], b=isCInst, out=isJGTInst);
+
+    // execution
+    Mux16(a=instruction, b=outALU, sel=storeA, out=inA);
+    Or(a=isAInst, b=storeA, out=loadA);
+    ARegister(in=inA, load=loadA, out=outA, out[0..14]=addressM);
+    Mux16(a=outA, b=inM, sel=isMInst, out=outAorM); // if isAInst then value from ARegister else value from memory
+    ALU(x=outD, y=outAorM, zx=instruction[11], nx=instruction[10], zy=instruction[9],ny=instruction[8],f=instruction[7],no=instruction[6], out=outM, out=outALU, zr=isZero, ng=isMinus); 
+    DRegister(in=outALU, load=storeD, out=outD);
+
+    //fetch
+    // 条件チェック
+    And(a=isJLTInst, b=isMinus, out=jltFlg);
+    And(a=isJEQInst, b=isZero, out=jeqFlg);
+    Not(in=isMinus, out=isNotMinus);
+    Not(in=isZero, out=isNotZero);
+    And(a=isNotZero, b=isNotMinus, out=isPlus);
+    And(a=isJGTInst, b=isPlus, out=jgtFlg);
+    Or8Way(in[0]=jltFlg, in[1]=jeqFlg, in[2]=jgtFlg, in[3..7]=false, out=shouldJump);
+    //次の命令アドレスを取得
+    PC(in=outA, inc=true, load=shouldJump, reset=reset, out[0..14]=pc);
 }
