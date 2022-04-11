@@ -179,6 +179,9 @@ class CodeWriter {
                 case "temp":
                     // temp : R5~R12
                     $index += 5;
+                case "pointer": 
+                    // pointer : R3~R4
+                    $index += 3;
                     fwrite($this->file, "// push temp\n");
                     // tempからプッシュするデータを取得する
                     fwrite($this->file, "@R{$index}\n");
@@ -211,13 +214,15 @@ class CodeWriter {
             switch($segment) {
                 case "temp" :
                     $index += 5;
-                    fwrite($this->file, "// pop temp\n");
+                case "pointer" :
+                    $index += 3;
+                    fwrite($this->file, "// pop {$segment}\n");
                     // ポップするデータを取得する
                     fwrite($this->file, "@SP\n"); // SPの一番上にある値をDに取得しポインターをデクリメントする
                     fwrite($this->file, "M=M-1\n");
                     fwrite($this->file, "A=M\n");
                     fwrite($this->file, "D=M\n");
-                    // temp[index]にポップしたデータを格納する
+                    // segment[index]にポップしたデータを格納する
                     fwrite($this->file, "@R{$index}\n");
                     fwrite($this->file, "M=D\n");
                     fwrite($this->file, "\n");
