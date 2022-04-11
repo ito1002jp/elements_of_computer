@@ -2,6 +2,12 @@
 
 class CodeWriter {
     private $file;
+    private $symbols = [
+        "local" => "LCL",
+        "argument" => "ARG",
+        "this" => "THIS",
+        "that" => "THAT"
+    ];
 
     public function __construct($file) {
         $this->file = $file;
@@ -169,15 +175,84 @@ class CodeWriter {
                     fwrite($this->file, "// push constant\n");
                     fwrite($this->file, "@{$index}\n");
                     fwrite($this->file, "D=A\n");
-                    fwrite($this->file, "@SP\n");
+                    break;
+                case "temp":
+                    // temp : R5~R12
+                    $index += 5;
+                    fwrite($this->file, "// push temp\n");
+                    // tempからプッシュするデータを取得する
+                    fwrite($this->file, "@R{$index}\n");
+                    fwrite($this->file, "D=M\n");
+                    break;
+                case "local" :
+                case "argument" :
+                case "this" :
+                case "that" :
+                    $symbol = $this->symbols[$segment];
+                    fwrite($this->file, "// push {$segment}\n");
+                    // プッシュするデータを取得する
+                    fwrite($this->file, "@{$index}\n");
+                    fwrite($this->file, "D=A\n");
+                    fwrite($this->file, "@{$symbol}\n");
+                    fwrite($this->file, "A=D+M\n"); // index + localのスタートポインターを算出しLCLを上書きする
+                    fwrite($this->file, "D=M\n"); // プッシュするデータをDに退避させる
+                    break;
+
+            }
+            // stackにDの値をプッシュする
+            fwrite($this->file, "@SP\n");
+            fwrite($this->file, "A=M\n");
+            fwrite($this->file, "M=D\n");
+            fwrite($this->file, "@SP\n");
+            fwrite($this->file, "M=M+1\n");
+            fwrite($this->file, "\n");
+
+        } else if ($command == "C_POP") {
+            switch($segment) {
+                case "temp" :
+                    $index += 5;
+                    fwrite($this->file, "// pop temp\n");
+                    // ポップするデータを取得する
+                    fwrite($this->file, "@SP\n"); // SPの一番上にある値をDに取得しポインターをデクリメントする
+                    fwrite($this->file, "M=M-1\n");
                     fwrite($this->file, "A=M\n");
+                    fwrite($this->file, "D=M\n");
+                    // temp[index]にポップしたデータを格納する
+                    fwrite($this->file, "@R{$index}\n");
                     fwrite($this->file, "M=D\n");
-                    fwrite($this->file, "@SP\n");
-                    fwrite($this->file, "M=M+1\n");
                     fwrite($this->file, "\n");
                     break;
+                case "local" :
+                case "argument" :
+                case "this" :
+                case "that" :
+                    $symbol = $this->symbols[$segment];
+                    fwrite($this->file, "// pop {$segment}\n");
+                    // local[index]のアドレスを取得する
+                    fwrite($this->file, "@{$index}\n");
+                    fwrite($this->file, "D=A\n");
+                    fwrite($this->file, "@{$symbol}\n");
+                    fwrite($this->file, "M=D+M\n"); // index + localのスタートポインターを算出しLCLを上書きする
+                    // ポップするデータを取得する
+                    fwrite($this->file, "@SP\n"); // SPの一番上にある値をDに取得しポインターをデクリメントする
+                    fwrite($this->file, "M=M-1\n");
+                    fwrite($this->file, "A=M\n");
+                    fwrite($this->file, "D=M\n");
+                    // popしたデータをlocal[index]に格納する
+                    fwrite($this->file, "@{$symbol}\n");
+                    fwrite($this->file, "A=M\n");
+                    fwrite($this->file, "M=D\n");
+                    // LCLをもとに戻す
+                    fwrite($this->file, "@{$index}\n");
+                    fwrite($this->file, "D=A\n");
+                    fwrite($this->file, "@{$symbol}\n");
+                    fwrite($this->file, "M=M-D\n"); 
+                    fwrite($this->file, "\n");
+                    break;
+
             }
-        } else if ($command == "C_POP") {}
+
+        }
     }
 
     public function close() {
