@@ -72,6 +72,9 @@ class Parser {
             case "if-goto":
                 $commandType = "C_IF";
                 break;
+            case "goto":
+                $commandType = "C_GOTO";
+                break;
         }
         return $commandType;
     }

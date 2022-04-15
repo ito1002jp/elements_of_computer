@@ -23,18 +23,31 @@ class CodeWriter {
      */
     public function writeLabel($label) {
         fwrite($this->file, "({$label})\n");
+        fwrite($this->file, "\n");
     }
 
     /**
      * if-gotoコマンドを行うアセンブリを出力する
      */
     public function writeIf($label) {
+        fwrite($this->file, "// if-goto\n");
         fwrite($this->file, "@SP\n");
         fwrite($this->file, "M=M-1\n");
         fwrite($this->file, "A=M\n");
         fwrite($this->file, "D=M\n");
         fwrite($this->file, "@{$label}\n");
         fwrite($this->file, "D;JMP\n");
+        fwrite($this->file, "\n");
+    }
+
+    /**
+     * gotoコマンドを行うアセンブリを出力する
+     */
+    public function writeGoto($label) {
+        fwrite($this->file, "// goto\n");
+        fwrite($this->file, "@{$label}\n");
+        fwrite($this->file, "0;JMP\n");
+        fwrite($this->file, "\n");
     }
 
     public function setFileName($fileName) {}
