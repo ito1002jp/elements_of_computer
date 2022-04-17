@@ -29,6 +29,12 @@ while ($parser->hasMoreCommands()) {
 		case "C_GOTO":
 			$writer->writeGoto($parser->arg1());
 			break;
+		case "C_FUNCTION":
+			$writer->writeFunction($parser->arg1(),$parser->arg2());
+			break;
+		case "C_RETURN":
+			$writer->writeReturn();
+			break;
 
 	}
 }

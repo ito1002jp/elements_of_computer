@@ -50,6 +50,86 @@ class CodeWriter {
         fwrite($this->file, "\n");
     }
 
+    /**
+     * functionコマンドを行うアセンブリを出力する
+     */
+    public function writeFunction($functionName, $numLocals) {
+        fwrite($this->file, "// function\n");
+        fwrite($this->file, "({$functionName})\n");
+        // ローカル変数の数だけSPを進める
+        for ($i = 0; $i < $numLocals; $i++) {
+            fwrite($this->file, "@SP\n");
+            fwrite($this->file, "A=M\n");
+            fwrite($this->file, "M=D\n");
+            fwrite($this->file, "@SP\n");
+            fwrite($this->file, "M=M+1\n");
+        }
+        fwrite($this->file, "\n");
+    }
+
+    /**
+     * returnコマンドを行うアセンブリを出力する
+     */
+    public function writeReturn() {
+        fwrite($this->file, "// reutrn \n");
+        // FRAME = LCL  => 呼び出し元の情報を格納するメモリを探すための基準となるLCLポインターを格納する
+        fwrite($this->file, "@LCL\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@R13\n");
+        fwrite($this->file, "M=D\n");
+        // RET = *(FRAME -5) => LCLの5つ前のアドレスにリターンアドレスが格納されている
+        fwrite($this->file, "@5\n");
+        fwrite($this->file, "D=A\n");
+        fwrite($this->file, "@R13\n");
+        fwrite($this->file, "A=M-D\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@R14\n");
+        fwrite($this->file, "M=D\n");
+        // *ARG = POP()
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=M-1\n");
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "D=M\n"); // 最新の情報をpop
+        fwrite($this->file, "@ARG\n"); // argument[0]に格納
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "M=D\n");
+        // ポインターを元に戻す
+        // SP = ARG + 1
+        fwrite($this->file, "@ARG\n");
+        fwrite($this->file, "D=M+1\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=D\n");
+        // THAT
+        fwrite($this->file, "@R13\n");
+        fwrite($this->file, "AM=M-1\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@THAT\n");
+        fwrite($this->file, "M=D\n");
+        // THIS
+        fwrite($this->file, "@R13\n");
+        fwrite($this->file, "AM=M-1\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@THIS\n");
+        fwrite($this->file, "M=D\n");
+        // ARG
+        fwrite($this->file, "@R13\n");
+        fwrite($this->file, "AM=M-1\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@ARG\n");
+        fwrite($this->file, "M=D\n");
+        //LCL
+        fwrite($this->file, "@R13\n");
+        fwrite($this->file, "AM=M-1\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@LCL\n");
+        fwrite($this->file, "M=D\n");
+        // goto RET
+        fwrite($this->file, "@R14\n");
+        fwrite($this->file, "A=M\n");
+
+        fwrite($this->file, "0;JMP\n");
+    }
+
     public function setFileName($fileName) {}
 
     public function writeArithmetic($id, $command) {
