@@ -16,9 +16,11 @@ closedir($fileDirectory);
 
 $wFilePath = $filePath.$directoryName.".asm";
 $writer = new CodeWriter(fopen($wFilePath, 'w'));
+$writer->writeInit();
 foreach ($vmFileList as $vmFile) {
 	$id = 0;
 	$parser = new Parser(fopen($filePath.$vmFile, 'r'));
+	$writer->setFileName($vmFile);
 	while ($parser->hasMoreCommands()) {
 		$parser->advance();
 		$commandType = $parser->commandType();
@@ -47,10 +49,13 @@ foreach ($vmFileList as $vmFile) {
 			case "C_RETURN":
 				$writer->writeReturn();
 				break;
+			case "C_CALL":
+				$writer->writeCall($id, $parser->arg1(), $parser->arg2());
+				break;
 		}
 	}
+	$parser->close();
 }
 
 $writer->close();
-$parser->close();
 ?>

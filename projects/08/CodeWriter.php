@@ -2,6 +2,8 @@
 
 class CodeWriter {
     private $file;
+    private $fileName;
+    private $labelNum = 0;
     private $symbols = [
         "local" => "LCL",
         "argument" => "ARG",
@@ -16,13 +18,22 @@ class CodeWriter {
     /**
      * 初期化処理
      */
-    public function writeInit() {}
+    public function writeInit() {
+        fwrite($this->file, "// init\n");
+        // SP = 256
+        fwrite($this->file, "@256\n");
+        fwrite($this->file, "D=A\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=D\n");
+        // call Sys.init
+        $this->writeCall("init", "Sys.init", 0);
+    }
     
     /**
      * Labelコマンドを行うアセンブリを出力する
      */
     public function writeLabel($label) {
-        fwrite($this->file, "({$label})\n");
+        fwrite($this->file, "({$this->fileName}"."$"."{$label})\n");
         fwrite($this->file, "\n");
     }
 
@@ -35,8 +46,8 @@ class CodeWriter {
         fwrite($this->file, "M=M-1\n");
         fwrite($this->file, "A=M\n");
         fwrite($this->file, "D=M\n");
-        fwrite($this->file, "@{$label}\n");
-        fwrite($this->file, "D;JMP\n");
+        fwrite($this->file, "@{$this->fileName}"."$"."{$label}\n");
+        fwrite($this->file, "D;JNE\n");
         fwrite($this->file, "\n");
     }
 
@@ -45,7 +56,7 @@ class CodeWriter {
      */
     public function writeGoto($label) {
         fwrite($this->file, "// goto\n");
-        fwrite($this->file, "@{$label}\n");
+        fwrite($this->file, "@{$this->fileName}"."$"."{$label}\n");
         fwrite($this->file, "0;JMP\n");
         fwrite($this->file, "\n");
     }
@@ -130,7 +141,83 @@ class CodeWriter {
         fwrite($this->file, "0;JMP\n");
     }
 
-    public function setFileName($fileName) {}
+    /**
+     * callコマンドを行うアセンブリを出力する
+     */
+    public function writeCall($id, $functionName, $numArgs) {
+        $this->labelNum++;
+        fwrite($this->file, "// call\n");
+        // push return-address
+        fwrite($this->file, "@return-address_{$this->labelNum}\n");
+        fwrite($this->file, "D=A\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "M=D\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=M+1\n");
+        // push LCL
+        fwrite($this->file, "@LCL\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "M=D\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=M+1\n");
+        // push ARG
+        fwrite($this->file, "@ARG\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "M=D\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=M+1\n");
+        // push THIS
+        fwrite($this->file, "@THIS\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "M=D\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=M+1\n");
+        // push THAT
+        fwrite($this->file, "@THAT\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "A=M\n");
+        fwrite($this->file, "M=D\n");
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "M=M+1\n");
+        // ARG = SP-n-5
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@{$numArgs}\n");
+        fwrite($this->file, "D=D-A\n");
+        fwrite($this->file, "@5\n"); // リターンアドレス~THATまでの情報数==5
+        fwrite($this->file, "D=D-A\n");
+        fwrite($this->file, "@ARG\n");
+        fwrite($this->file, "M=D\n");
+        // LCL = SP
+        fwrite($this->file, "@SP\n");
+        fwrite($this->file, "D=M\n");
+        fwrite($this->file, "@LCL\n");
+        fwrite($this->file, "M=D\n");
+        // goto f
+        fwrite($this->file, "@{$functionName}\n");
+        fwrite($this->file, "0;JMP\n");
+        fwrite($this->file, "\n");
+        // return-address label
+        fwrite($this->file, "(return-address_{$this->labelNum})\n");
+        fwrite($this->file, "\n");
+    }
+
+    /**
+     * ファイル名を取得する
+     * 引数のファイル名から拡張子を排除しメンバ変数に格納する
+     * @param $fileName => {fileName}.vm
+     */
+    public function setFileName($fileName) {
+        $this->fileName = explode(".", $fileName)[0];
+    }
 
     public function writeArithmetic($id, $command) {
         switch ($command) {

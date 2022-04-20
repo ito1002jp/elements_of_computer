@@ -81,7 +81,9 @@ class Parser {
             case "return":
                 $commandType = "C_RETURN";
                 break;
-
+            case "call":
+                $commandType = "C_CALL";
+                break;
         }
         return $commandType;
     }
