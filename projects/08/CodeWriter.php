@@ -392,9 +392,8 @@ class CodeWriter {
                     fwrite($this->file, "D=M\n");
                     break;
                 case "static" :
-                    $index += 16;
                     fwrite($this->file, "// push static\n");
-                    fwrite($this->file, "@{$index}\n");
+                    fwrite($this->file, "@{$this->fileName}"."."."{$index}\n");
                     fwrite($this->file, "D=M\n");
                     break;
                 case "local" :
@@ -438,7 +437,6 @@ class CodeWriter {
                     fwrite($this->file, "\n");
                     break;
                 case "static" :
-                    $index += 16;
                     fwrite($this->file, "// pop {$segment}\n");
                     // ポップするデータを取得する
                     fwrite($this->file, "@SP\n"); // SPの一番上にある値をDに取得しポインターをデクリメントする
@@ -446,7 +444,7 @@ class CodeWriter {
                     fwrite($this->file, "A=M\n");
                     fwrite($this->file, "D=M\n");
                     // segment[index]にポップしたデータを格納する
-                    fwrite($this->file, "@{$index}\n");
+                    fwrite($this->file, "@{$this->fileName}"."."."{$index}\n");
                     fwrite($this->file, "M=D\n");
                     fwrite($this->file, "\n");
                     break;
