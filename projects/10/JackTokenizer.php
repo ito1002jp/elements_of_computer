@@ -1,5 +1,66 @@
 <?php 
 
+class Token {
+    private $val;
+    private $type;
+    private $valsForXML = [
+        "<" => "&lt;",
+        ">" => "&gt;",
+        "&" => "&amp;"
+    ]; 
+
+    public function __construct($val, $type) {
+        $this->val = $val;
+        $this->type = $type;
+    }
+
+    /**
+     * tokenを返す
+     * 一部tokenはXML用の表現に変換する
+     */
+    public function getVal() {
+        if (!$val = $this->valsForXML[$this->val]) {
+            $val = $this->val;
+        }
+        return $val;
+    }
+
+    public function getType() {return $this->type;}
+
+    /**
+     * tokenのタイプからxmlのタグ名を取得する
+     * @return string
+     */
+    public function getXmlTag() {
+        $tag = "";
+        if ($this->type == "SYMBOL") {
+            $tag = "symbol";
+        } elseif ($this->type == "KEYWORD") {
+            $tag = "keyword";
+        } elseif ($this->type == "IDENTIFIER") {
+            $tag = "identifier";
+        } elseif ($this->type == "STRING_CONST") {
+            $tag = "stringConstant";
+        } elseif ($this->type == "INT_CONST") {
+            $tag = "integerConstant";
+        }
+
+        if ($tag == "") {
+            throw new Exception("トークンタイプが無効なためxml tagの生成ができません。tokenType: {$tokenType}");
+        }
+
+        return $tag;
+    }
+
+    /**
+     * token情報をxmlフォーマットで出力する
+     */
+    public function genXml() {
+        return "<{$this->getXmlTag()}> " . $this->getVal() . " </{$this->getXmlTag()}>";
+    }
+
+}
+
 class JackTokenizer {
     
     /**
@@ -10,139 +71,202 @@ class JackTokenizer {
     /**
      * jackプログラム１行に含まれる複数のトークンを格納する
      */
-    private $currentTokens;
+    private $tokens = [];
     
     /**
      * jackプログラムから取得したトークンを一つ格納する
      */
     private $currentToken;
 
+    const KEYWORDS = [
+            "class",
+            "constructor",
+            "function",
+            "method",
+            "field",
+            "static",
+            "var",
+            "int",
+            "char",
+            "boolean",
+            "void",
+            "true",
+            "false",
+            "null",
+            "this",
+            "let",
+            "do",
+            "if",
+            "else",
+            "while",
+            "return"
+        ];
+    const SYMBOLS = [
+            "{",
+            "}",
+            "(",
+            ")",
+            "[",
+            "]",
+            ".",
+            ",",
+            ";",
+            "+",
+            "-",
+            "*",
+            "/",
+            "&",
+            "|",
+            "<",
+            ">",
+            "=",
+            "~"
+        ];
+
+
     /**
      * コンストラクタ
      * - トークン解析するjackファイルを受け取る
+     * - トークンに分解しxml形式にパースしてファイルに書き出す
      * ＠param $file fopen関数の結果を受け取る
      */
-    public function __construct($file) {
-        $this->file = $file;
+    public function __construct($filePath) {
+        $this->file = fopen($filePath, 'r');
+        $wFilePath = explode(".jack", $filePath)[0]."T2.xml"; // .jack => .xmlに書き換える
+
+        // token生成処理
+        while($line = fgets($this->file)) {
+            $line = $this->removeCommentAndNewLineCode($line);
+            // コメントラインや空白ラインはスキップする
+            if (empty($line)) {
+                continue;
+            }
+            $this->getTokensFromLine($line);
+        }
+
+        // xml出力処理
+        $wFile = fopen($wFilePath, 'w');
+        fwrite($wFile, "<tokens>\n");
+        foreach ($this->tokens as $token) {
+            fwrite($wFile, $token->genXml()."\n");
+        }
+        fwrite($wFile, "</tokens>\n");
+    }
+
+    /**
+     * jackファイルの行からコメントや改行コードを削除する
+     */
+	private function removeCommentAndNewLineCode($line) {
+		return rtrim(substr($line, 0, strcspn($line, "//")));
+	}
+
+    /**
+     * jackファイルの１行からtokenを全て取得し、メンバ変数に格納する
+     * return Token $token
+     */
+    private function getTokensFromLine($line) {
+        // スペースで区切る => tokenチェック => tokenチェック失敗時、symbolで分割してtokenチェック
+        $tokenVals = explode(" ", $line);
+        foreach ($tokenVals as $tokenVal) {
+            $token = $this->judgeToken($tokenVal);
+            if ($token) {
+                $this->tokens[] = $token;
+                continue;
+            }
+
+            // tokenチェック失敗時の処理 => チェック失敗時は、(x)などsymbolとidenfierの組み合わせの場合などが想定される。
+            // 次のsymbolまでを一区切りにしいた物を一つずつチェックする
+            while ($tokenVal) {
+                // tokenValの先頭から一番近いsymbolのindexを取得する
+                preg_match("/[\{\}\(\)\[\]\.,;\+\-\*\/&\|<>=~]/", $tokenVal, $symbolMatches, PREG_OFFSET_CAPTURE);
+                $symbolIndex = $symbolMatches[0][1];
+
+                if (!is_null($symbolIndex)) {
+                    // 先頭から１番近いsymbolまでをtokenのjudge対象とする。
+                    $token = $this->judgeToken(substr($tokenVal, 0, $symbolIndex));
+                    // 先頭から１番近いsymbolまでをtokenのjudge対象としい、tokenのjudgeが失敗した場合は先頭がsymbolである($symbolIndex=0)。先頭のindexをインクリメントし再度ジャッジする
+                    if (!$token) {
+                        $symbolIndex++;
+                        $token = $this->judgeToken(substr($tokenVal, 0, $symbolIndex));
+                    }
+                } else {
+                    $token = $this->judgeToken($tokenVal);
+                    $symbolIndex = strlen($tokenVal);
+                }
+
+                if ($token) {
+                    $this->tokens[] = $token;
+                    $tokenVal = substr($tokenVal, $symbolIndex, strlen($tokenVal));
+                } else {
+                    // いずれのtoken judgeも失敗した場合、それはtokenが無効であるため例外を投げる。
+                    throw new Exception("The token is invalid. {$tokenVal}");
+                }
+            }
+        }
+    }
+
+    /**
+     * 与えられた文字列がtokenかどうかを判断する。tokenである場合はTokenを生成し、そうでない場合はnullを返す
+     * @return Token
+     */
+    private function judgeToken($tokenVal) {
+        // echo $tokenVal."\n";
+        $token = null;
+        if (in_array($tokenVal, self::KEYWORDS)) {
+            $token = new Token($tokenVal, "KEYWORD");
+        } elseif (in_array($tokenVal, self::SYMBOLS)) {
+            $token = new Token($tokenVal, "SYMBOL");
+        } elseif (preg_match('/^[0-9]+$/', $tokenVal)) { // check integer const
+            $token = new Token($tokenVal, "INT_CONST");
+        } elseif (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $tokenVal)) { // check identifier
+            $token = new Token($tokenVal, "IDENTIFIER");
+        } elseif (preg_match('/^".*"$/', $tokenVal)) { // check string const
+            $token = new Token($tokenVal, "STRING_CONST");
+        }
+
+        return $token;
     }
 
     /**
      * トークンがさらに存在するか確認する
      */
-    public function hasMoreTokens() {
-        // 確認中の行に含まれるトークンの集合配列が空であり、かつ次の行が存在しない場合はfalse
-	    return !(empty($currentTokens) && feof($this->file));
-    }
+    public function hasMoreTokens() {}
 
     /**
      * 次のトークンを取得する
-     * - １行ずつ取得し、１行に含まれる複数のトークンを配列に格納する
      */
-    public function advance() {
-        // 確認中の行に含まれるトークンを全て調べ終わったら、次の行からトークンを取得する
-        if (empty($this->currentTokens)) {
-            $line = $this->removeComment(trim(fgets($this->file)));
-            $this->currentTokens = explode($line, " ");
-        }
-
-        $this->currentToken = array_shift($this->currentTokens);
-    }
+    public function advance() {}
     
     /**
      * 現トークンの種類を返す
      */
-    public function tokenType() {
-        switch ($this->currentToken) {
-            case "class":
-            case "constructor":
-            case "function":
-            case "method":
-            case "field":
-            case "static":
-            case "var":
-            case "int":
-            case "char":
-            case "boolean":
-            case "void":
-            case "true":
-            case "false":
-            case "null":
-            case "this":
-            case "let":
-            case "do":
-            case "if":
-            case "else":
-            case "while":
-            case "return":
-                $tokenType = "KEYWORD";
-                break;
-            case "{":
-            case "}":
-            case "(":
-            case ")":
-            case "[":
-            case "]":
-            case ".":
-            case ",":
-            case ";":
-            case "+":
-            case "-":
-            case "*":
-            case "/":
-            case "&":
-            case "|":
-            case "<":
-            case ">":
-            case "=":
-            case "~":
-                $tokenType = "SYMBOL";
-                break;
-            default:
-                is_int($this->currentToken) ? $tokenType = "INT_CONST" : null;
-                $this->currentToken[0] == "\"" && $this->currentToken[length($this->currentToken)-1] == "\"" ? $tokenType = "STRING_CONST" : null;
-                !is_int($this->currentToken[0]) ? $tokenType = "IDENTIFIER" : null;
-        }
-        if ($tokenType == null) {
-            throw new Exception("The current token is not tokenizable. The token is \"{$this->currentToken}\"");
-        }
-        return $tokenType;
-    }
+    public function tokenType() {}
 
     /**
      * 現トークンの種類がキーワードの場合キーワードの種類を返す
      * - トークンを大文字にして返す
      */
-    public function keyWord() {
-        return strtoupper($this->currentToken());
-    }
+    public function keyWord() {}
 
     /**
      * 現トークンの種類がシンボルの場合シンボルの種類を返す
      */
-    public function symbol() {
-        return $this->currentToken();
-    }
+    public function symbol() {}
 
     /**
      * 現トークンの種類がIDENTIFIERの場合IDENTIFIERの種類を返す
      */
-    public function identifier() {
-        return $this->currentToken();
-    }
+    public function identifier() {}
 
     /**
      * 現トークンの種類が整数の場合整数の値を返す
      */
-    public function intVal() {
-        return $this->currentToken;
-    }
+    public function intVal() {}
 
     /**
      * 現トークンの種類が文字列の場合文字列を返す
      */
-    public function stringVal() {
-        return $this->currentToken;
-    }
+    public function stringVal() {}
 }
 
 ?>
