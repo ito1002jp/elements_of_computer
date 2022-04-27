@@ -19,9 +19,22 @@ class Token {
      * 一部tokenはXML用の表現に変換する
      */
     public function getVal() {
+        $valsForXML = [
+            "<" => "&lt;",
+            ">" => "&gt;",
+            "&" => "&amp;"
+        ]; 
+
         if (!$val = $this->valsForXML[$this->val]) {
             $val = $this->val;
+        } 
+
+        if ($this->getType() == "STRING_CONST") {
+            // double quotesを削除する
+            $val = str_replace("\"", "", $val);
         }
+
+    
         return $val;
     }
 
@@ -136,8 +149,13 @@ class JackTokenizer {
 
         // token生成処理
         while($line = fgets($this->file)) {
+            // コメントの場合コメント終了するまでポインターを進める
+            if (strpos(trim($line), "/*") === 0) {
+                continue;
+            }
+
             $line = $this->removeCommentAndNewLineCode($line);
-            // コメントラインや空白ラインはスキップする
+            // コメントラインのみの場合はスキップする
             if (empty($line)) {
                 continue;
             }
@@ -157,7 +175,7 @@ class JackTokenizer {
      * jackファイルの行からコメントや改行コードを削除する
      */
 	private function removeCommentAndNewLineCode($line) {
-		return rtrim(substr($line, 0, strcspn($line, "//")));
+		return rtrim(explode("//", $line)[0]);
 	}
 
     /**
@@ -165,15 +183,35 @@ class JackTokenizer {
      * return Token $token
      */
     private function getTokensFromLine($line) {
-        // スペースで区切る => tokenチェック => tokenチェック失敗時、symbolで分割してtokenチェック
-        $tokenVals = explode(" ", $line);
-        foreach ($tokenVals as $tokenVal) {
+        while ($line) {
+            preg_match("/\\s/", $line, $spaceMatches, PREG_OFFSET_CAPTURE);
+            preg_match("/\"/", $line, $doubleQuoteMatches, PREG_OFFSET_CAPTURE);
+            $spaceIndex = !is_null($spaceMatches[0][1]) ? $spaceMatches[0][1] : PHP_INT_MAX;
+            $doubleQuoteIndex = !is_null($doubleQuoteMatches[0][1]) ? $doubleQuoteMatches[0][1] : PHP_INT_MAX;
+
+            if ($spaceIndex < $doubleQuoteIndex) {
+                $tokenVal = substr($line, 0, $spaceIndex);
+                $line = trim(substr($line, $spaceIndex, strlen($line)));
+            } elseif ($doubleQuoteIndex < $spaceIndex) {
+                //string の処理を行う
+                // 2個目のdouble quoteを探す
+                preg_match("/\"/", substr($line, $doubleQuoteIndex+1, strlen($line)), $doubleQuoteMatches, PREG_OFFSET_CAPTURE);
+                $firstDoubleQuoteIndex = $doubleQuoteIndex;
+                $lastDoubleQuoteIndex = $doubleQuoteMatches[0][1] + 2;
+                $tokenVal = substr($line, $firstDoubleQuoteIndex, $lastDoubleQuoteIndex);
+                $line = trim(substr($line, $lastDoubleQuoteIndex, strlen($line)));
+            } else {
+                $tokenVal = $line;
+                $line = null;
+            }
+
             $token = $this->judgeToken($tokenVal);
             if ($token) {
                 $this->tokens[] = $token;
                 continue;
             }
 
+            // スペースで区切る => tokenチェック => tokenチェック失敗時、symbolで分割してtokenチェック
             // tokenチェック失敗時の処理 => チェック失敗時は、(x)などsymbolとidenfierの組み合わせの場合などが想定される。
             // 次のsymbolまでを一区切りにしいた物を一つずつチェックする
             while ($tokenVal) {
