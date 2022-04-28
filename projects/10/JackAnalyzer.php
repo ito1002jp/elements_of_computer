@@ -25,7 +25,6 @@ if (is_dir($filePath)) {
 foreach ($jackFilePathList as $jackFilePath) {
     $tokens = [];
     $tokenizer = new JackTokenizer($jackFilePath);
-    exit;
 }
 
 ?>

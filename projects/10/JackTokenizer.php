@@ -3,11 +3,6 @@
 class Token {
     private $val;
     private $type;
-    private $valsForXML = [
-        "<" => "&lt;",
-        ">" => "&gt;",
-        "&" => "&amp;"
-    ]; 
 
     public function __construct($val, $type) {
         $this->val = $val;
@@ -85,8 +80,14 @@ class JackTokenizer {
      * jackプログラム１行に含まれる複数のトークンを格納する
      */
     private $tokens = [];
+
+    /**
+     * tokensのポインター
+     */
+    private $tokenPointer = 0;
     
     /**
+     * Token class
      * jackプログラムから取得したトークンを一つ格納する
      */
     private $currentToken;
@@ -164,7 +165,12 @@ class JackTokenizer {
             }
             $this->getTokensFromLine($line);
         }
+    }
 
+    /**
+     * tokenをXML形式で出力する
+     */
+    private function outputXML($wFilePath) {
         // xml出力処理
         $wFile = fopen($wFilePath, 'w');
         fwrite($wFile, "<tokens>\n");
@@ -222,8 +228,6 @@ class JackTokenizer {
                 continue;
             }
         }
-        // print_r($this->tokens);
-        // exit;
     }
 
     /**
@@ -276,44 +280,67 @@ class JackTokenizer {
 
     /**
      * トークンがさらに存在するか確認する
+     * @return boolean
      */
-    public function hasMoreTokens() {}
+    public function hasMoreTokens() {
+        if ($this->$tokens[$this->pointer+1]) {
+            return true;
+        }
+
+        return false;
+    }
 
     /**
      * 次のトークンを取得する
      */
-    public function advance() {}
+    public function advance() {
+        $this->pointer++;
+        $this->currentToken = $this->tokens[$this->pointer];
+    }
     
     /**
      * 現トークンの種類を返す
      */
-    public function tokenType() {}
+    public function tokenType() {
+        return $this->currentToken->getType();
+    }
 
     /**
      * 現トークンの種類がキーワードの場合キーワードの種類を返す
      * - トークンを大文字にして返す
      */
-    public function keyWord() {}
+    public function keyWord() {
+        return strupper($this->currentToken->getVal());
+    }
 
     /**
      * 現トークンの種類がシンボルの場合シンボルの種類を返す
      */
-    public function symbol() {}
+    public function symbol() {
+        return $this->currentToken->getVal();
+    }
 
     /**
      * 現トークンの種類がIDENTIFIERの場合IDENTIFIERの種類を返す
      */
-    public function identifier() {}
+    public function identifier() {
+        return $this->currentToken->getVal();
+    }
 
     /**
      * 現トークンの種類が整数の場合整数の値を返す
      */
-    public function intVal() {}
+    public function intVal() {
+        return $this->currentToken->getVal();
+    }
 
     /**
      * 現トークンの種類が文字列の場合文字列を返す
      */
-    public function stringVal() {}
+    public function stringVal() {
+        return $this->currentToken->getVal();
+    }
 }
 
 ?>
+
