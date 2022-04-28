@@ -194,18 +194,26 @@ class JackTokenizer {
 
             if ($spaceIndex < $doubleQuoteIndex) {
                 $tokenVal = substr($line, 0, $spaceIndex);
-                $line = trim(substr($line, $spaceIndex, strlen($line)));
+                if (preg_match("/[\{\}\(\)\[\]\.,;\+\-\*\/&\|<>=~]/", $tokenVal)) {
+                    // symbolを含む
+                    [$tokenVal, $line] = $this->popToken($line);
+                } else {
+                    // symbol含まない
+                    $line = trim(substr($line, $spaceIndex, strlen($line)));
+                }
             } elseif ($doubleQuoteIndex < $spaceIndex) {
-                //string の処理を行う
-                // 2個目のdouble quoteを探す
-                preg_match("/\"/", substr($line, $doubleQuoteIndex+1, strlen($line)), $doubleQuoteMatches, PREG_OFFSET_CAPTURE);
-                $firstDoubleQuoteIndex = $doubleQuoteIndex;
-                $lastDoubleQuoteIndex = $doubleQuoteMatches[0][1] + 2;
-                $tokenVal = substr($line, $firstDoubleQuoteIndex, $lastDoubleQuoteIndex);
-                $line = trim(substr($line, $lastDoubleQuoteIndex, strlen($line)));
+                // 次のチャンクがstring以外のtokenの場合
+                if ($doubleQuoteIndex == 0) {
+                    preg_match("/\"/", substr($line, $doubleQuoteIndex+1, strlen($line)), $doubleQuoteMatches, PREG_OFFSET_CAPTURE);
+                    $firstDoubleQuoteIndex = $doubleQuoteIndex;
+                    $lastDoubleQuoteIndex = $doubleQuoteMatches[0][1] + 2;
+                    $tokenVal = substr($line, $firstDoubleQuoteIndex, $lastDoubleQuoteIndex);
+                    $line = trim(substr($line, $lastDoubleQuoteIndex, strlen($line)));
+                } else {
+                    [$tokenVal, $line] = $this->popToken($line);
+                }
             } else {
-                $tokenVal = $line;
-                $line = null;
+                [$tokenVal, $line] = $this->popToken($line);
             }
 
             $token = $this->judgeToken($tokenVal);
@@ -213,37 +221,35 @@ class JackTokenizer {
                 $this->tokens[] = $token;
                 continue;
             }
-
-            // スペースで区切る => tokenチェック => tokenチェック失敗時、symbolで分割してtokenチェック
-            // tokenチェック失敗時の処理 => チェック失敗時は、(x)などsymbolとidenfierの組み合わせの場合などが想定される。
-            // 次のsymbolまでを一区切りにしいた物を一つずつチェックする
-            while ($tokenVal) {
-                // tokenValの先頭から一番近いsymbolのindexを取得する
-                preg_match("/[\{\}\(\)\[\]\.,;\+\-\*\/&\|<>=~]/", $tokenVal, $symbolMatches, PREG_OFFSET_CAPTURE);
-                $symbolIndex = $symbolMatches[0][1];
-
-                if (!is_null($symbolIndex)) {
-                    // 先頭から１番近いsymbolまでをtokenのjudge対象とする。
-                    $token = $this->judgeToken(substr($tokenVal, 0, $symbolIndex));
-                    // 先頭から１番近いsymbolまでをtokenのjudge対象としい、tokenのjudgeが失敗した場合は先頭がsymbolである($symbolIndex=0)。先頭のindexをインクリメントし再度ジャッジする
-                    if (!$token) {
-                        $symbolIndex++;
-                        $token = $this->judgeToken(substr($tokenVal, 0, $symbolIndex));
-                    }
-                } else {
-                    $token = $this->judgeToken($tokenVal);
-                    $symbolIndex = strlen($tokenVal);
-                }
-
-                if ($token) {
-                    $this->tokens[] = $token;
-                    $tokenVal = substr($tokenVal, $symbolIndex, strlen($tokenVal));
-                } else {
-                    // いずれのtoken judgeも失敗した場合、それはtokenが無効であるため例外を投げる。
-                    throw new Exception("The token is invalid. {$tokenVal}");
-                }
-            }
         }
+        // print_r($this->tokens);
+        // exit;
+    }
+
+    /**
+     * 受け取ったtokenを含む行の値からtokenを抽出しtokenかどうかを判断する
+     * - 次のsymbolまでのチャンクをtoken judetの対象にする
+     */
+    private function popToken($line) {
+        // tokenValの先頭から一番近いsymbolのindexを取得する
+        preg_match("/[\{\}\(\)\[\]\.,;\+\-\*\/&\|<>=~]/", $line, $symbolMatches, PREG_OFFSET_CAPTURE);
+        $symbolIndex = $symbolMatches[0][1];
+
+        if (!is_null($symbolIndex)) {
+            if ($symbolIndex == 0) {
+                // 先頭がsymbolの場合
+                $tokenVal = $line[0];
+                $line = trim(substr($line, 1, strlen($line)));
+            } else {
+                // 先頭がsymbolではない場合、次のsymbolまでのチャンクをtoken judgetの対象にする 
+                $tokenVal = substr($line, 0, $symbolIndex);
+                $line = trim(substr($line, $symbolIndex, strlen($line)));
+            }
+        } else {
+            $tokenVal = $line;
+            $line = null;
+        }
+        return [$tokenVal, $line];
     }
 
     /**
