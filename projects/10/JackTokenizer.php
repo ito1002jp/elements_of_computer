@@ -148,9 +148,12 @@ class JackTokenizer {
         $wFilePath = explode(".jack", $filePath)[0]."T2.xml"; // .jack => .xmlに書き換える
 
         // token生成処理
-        while($line = fgets($this->file)) {
+        while($line = fgets($this->file)) { 
             // コメントの場合コメント終了するまでポインターを進める
             if (strpos(trim($line), "/*") === 0) {
+                while (strpos($line, "*/") === false) {
+                    $line = fgets($this->file);
+                }
                 continue;
             }
 
