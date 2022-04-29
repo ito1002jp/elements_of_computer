@@ -84,7 +84,7 @@ class JackTokenizer {
     /**
      * tokensのポインター
      */
-    private $tokenPointer = 0;
+    private $pointer = -1;
     
     /**
      * Token class
@@ -146,7 +146,7 @@ class JackTokenizer {
      */
     public function __construct($filePath) {
         $this->file = fopen($filePath, 'r');
-        $wFilePath = explode(".jack", $filePath)[0]."T2.xml"; // .jack => .xmlに書き換える
+        // $wFilePath = explode(".jack", $filePath)[0]."T2.xml"; // .jack => .xmlに書き換える
 
         // token生成処理
         while($line = fgets($this->file)) { 
@@ -165,6 +165,7 @@ class JackTokenizer {
             }
             $this->getTokensFromLine($line);
         }
+        // $this->outputXML($wFilePath);
     }
 
     /**
@@ -283,7 +284,7 @@ class JackTokenizer {
      * @return boolean
      */
     public function hasMoreTokens() {
-        if ($this->$tokens[$this->pointer+1]) {
+        if ($this->tokens[$this->pointer+1]) {
             return true;
         }
 
@@ -297,6 +298,13 @@ class JackTokenizer {
         $this->pointer++;
         $this->currentToken = $this->tokens[$this->pointer];
     }
+
+    /**
+     * １個先のトークンを返す。pointerは先に進めない。
+     */
+    public function peek() {
+        return $this->tokens[$this->pointer+1];
+    }
     
     /**
      * 現トークンの種類を返す
@@ -306,39 +314,10 @@ class JackTokenizer {
     }
 
     /**
-     * 現トークンの種類がキーワードの場合キーワードの種類を返す
-     * - トークンを大文字にして返す
+     * 現在のトークンをXML形式で取得する
      */
-    public function keyWord() {
-        return strupper($this->currentToken->getVal());
-    }
-
-    /**
-     * 現トークンの種類がシンボルの場合シンボルの種類を返す
-     */
-    public function symbol() {
-        return $this->currentToken->getVal();
-    }
-
-    /**
-     * 現トークンの種類がIDENTIFIERの場合IDENTIFIERの種類を返す
-     */
-    public function identifier() {
-        return $this->currentToken->getVal();
-    }
-
-    /**
-     * 現トークンの種類が整数の場合整数の値を返す
-     */
-    public function intVal() {
-        return $this->currentToken->getVal();
-    }
-
-    /**
-     * 現トークンの種類が文字列の場合文字列を返す
-     */
-    public function stringVal() {
-        return $this->currentToken->getVal();
+    public function getCurrentTokenInXML() {
+        return $this->currentToken->genXml();
     }
 }
 

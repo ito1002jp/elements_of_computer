@@ -1,5 +1,6 @@
 <?php
 require("JackTokenizer.php");
+require("CompilationEngine.php");
 
 $filePath = $argv[1];
 
@@ -12,7 +13,7 @@ if (is_dir($filePath)) {
     $jackFilePathList = [];
     while($fileName = readdir($fileDirectory)) {
     	if ($fileName != '.' && $fileName != '..' && preg_match('/\.(jack)$/i', $fileName)) {
-    		$jackFilePathList[] = $filePath.$jackFileName;
+    		$jackFilePathList[] = $filePath.$fileName;
     	  }
     }
     closedir($fileDirectory);
@@ -20,11 +21,9 @@ if (is_dir($filePath)) {
     $jackFilePathList[] = $filePath;
 }
 
-//ディレクトリじゃない場合
-
 foreach ($jackFilePathList as $jackFilePath) {
     $tokens = [];
-    $tokenizer = new JackTokenizer($jackFilePath);
+    $compilationEngine = new CompilationEngine($jackFilePath);
 }
 
 ?>
