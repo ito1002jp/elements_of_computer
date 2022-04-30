@@ -36,6 +36,47 @@ class Token {
     public function getType() {return $this->type;}
 
     /**
+     * operaationかどうかの判定を返す
+     * @return boolean
+     */
+    public function isOperation() {
+        $operationSymbols = [
+            "+",
+            "-",
+            "*",
+            "/",
+            "&",
+            "|",
+            "<",
+            ">",
+            "=",
+            "~"
+        ];
+        if (in_array($this->getVal(), $operationSymbols)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * statementかどうかの判定を返す
+     * @return boolean
+     */
+    public function isStatement() {
+        $statementKeyWords = [
+            "if",
+            "let",
+            "do",
+            "while",
+            "return",
+        ];
+        if (in_array($this->getVal(), $statementKeyWords)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * tokenのタイプからxmlのタグ名を取得する
      * @return string
      */

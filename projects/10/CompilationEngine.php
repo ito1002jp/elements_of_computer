@@ -25,18 +25,8 @@ class CompilationEngine {
         while (in_array($this->tokenizer->peek()->getVal(), ["constructor", "function", "method"])) {
             $this->compileSubroutine();
         }
-
+        $this->outputNextTokenInXML(); // }
         fwrite($this->file, "</class>\n");
-    }
-
-    /**
-     * 次のトークンを取得し、トークン情報をXML形式に出力する
-     */
-    private function outputNextTokenInXML()
-    {
-        $this->tokenizer->hasMoreTokens() ? $this->tokenizer->advance() : null;
-        $xml = $this->tokenizer->getCurrentTokenInXML();
-        fwrite($this->file, "{$xml}\n");
     }
 
     /**
@@ -103,8 +93,7 @@ class CompilationEngine {
 
     private function compileStatements() {
         fwrite($this->file, "<statements>\n");
-        while ($this->tokenizer->peek()->getVal() != "}") {
-            $this->tokenizer->advance();
+        while ($this->tokenizer->peek()->isStatement()){
             switch ($this->tokenizer->peek()->getVal()) {
                 case "let":
                     $this->compileLet();
@@ -128,31 +117,142 @@ class CompilationEngine {
 
     private function compileLet() {
         fwrite($this->file, "<letStatement>\n");
+        $this->outputNextTokenInXML(); // let
+        $this->outputNextTokenInXML(); // {varname}
+        if ($this->tokenizer->peek()->getVal() == "[") {
+            $this->outputNextTokenInXML(); // [
+            $this->compileExpression();
+            $this->outputNextTokenInXML(); // ]
+        }
+        $this->outputNextTokenInXML(); // =
+        $this->compileExpression();
+        $this->outputNextTokenInXML(); // ;
         fwrite($this->file, "</letStatement>\n");
     }
 
     private function compileIf() {
         fwrite($this->file, "<ifStatement>\n");
+        $this->outputNextTokenInXML(); // if
+        $this->outputNextTokenInXML(); // (
+        $this->compileExpression();
+        $this->outputNextTokenInXML(); // )
+        $this->outputNextTokenInXML(); // {
+        $this->compileStatements();
+        $this->outputNextTokenInXML(); // }
+        if ($this->tokenizer->peek()->getVal() == "else") {
+            $this->outputNextTokenInXML(); // else
+            $this->outputNextTokenInXML(); // {
+            $this->compileStatements();
+            $this->outputNextTokenInXML(); // }
+        }
         fwrite($this->file, "</ifStatement>\n");
     }
 
     private function compileWhile() {
         fwrite($this->file, "<whileStatement>\n");
+        $this->outputNextTokenInXML(); // while
+        $this->outputNextTokenInXML(); // (
+        $this->compileExpression();
+        $this->outputNextTokenInXML(); // )
+        $this->outputNextTokenInXML(); // {
+        $this->compileStatements();
+        $this->outputNextTokenInXML(); // }
         fwrite($this->file, "</whileStatement>\n");
     }
 
     private function compileDo() {
         fwrite($this->file, "<doStatement>\n");
+        $this->outputNextTokenInXML(); // do
+        // subroutine call
+        $this->outputNextTokenInXML(); // {subroutineName} | {className | varName}
+        if ($this->tokenizer->peek()->getVal() == ".") {
+            $this->outputNextTokenInXML(); // .
+            $this->outputNextTokenInXML(); // {subroutineName}
+        }
+        $this->outputNextTokenInXML(); // (
+        $this->compileExpressionList();
+        $this->outputNextTokenInXML(); // )
+        $this->outputNextTokenInXML(); // ;
         fwrite($this->file, "</doStatement>\n");
     }
 
     private function compileReturn() {
         fwrite($this->file, "<returnStatement>\n");
+        $this->outputNextTokenInXML(); // return
+        if ($this->tokenizer->peek()->getVal() != ";") {
+            $this->compileExpression();
+        }
+        $this->outputNextTokenInXML(); // ;
+
         fwrite($this->file, "</returnStatement>\n");
     }
 
-    private function compileExpression() {}
-    private function compileTerm() {}
-    private function compileExpressionList() {}
+    private function compileExpression() {
+        fwrite($this->file, "<expression>\n");
+        $this->compileTerm();
+        while ($this->tokenizer->peek()->isOperation()) {
+            $this->outputNextTokenInXML(); // op
+            $this->compileTerm();
+        }
+
+        fwrite($this->file, "</expression>\n");
+    }
+
+    private function compileTerm() {
+        fwrite($this->file, "<term>\n");
+        if ($this->tokenizer->peek()->getVal() == "(") {
+            // ({expression})
+            $this->outputNextTokenInXML(); // (
+            $this->compileExpression();
+            $this->outputNextTokenInXML(); // )
+        } elseif (in_array($this->tokenizer->peek()->getVal(), ["-", "~"])) {
+            // {unaryOp} {term}
+            $this->outputNextTokenInXML(); // {unaryOp}
+            $this->compileTerm();
+        } else {
+            $this->outputNextTokenInXML(); // integerConstant | stringConstant | keywordConstant | varName | subroutineName
+            if ($this->tokenizer->peek()->getVal() == ".") {
+                // subroutineCall
+                // varName.subroutineName();
+                $this->outputNextTokenInXML(); // .
+                $this->outputNextTokenInXML(); // {subroutineName}
+                $this->outputNextTokenInXML(); // (
+                $this->outputNextTokenInXML(); // )
+            } elseif ($this->tokenizer->peek()->getVal() == "(") {
+                // subroutineCall
+                // subroutineName();
+                $this->outputNextTokenInXML(); // (
+                $this->outputNextTokenInXML(); // )
+            } elseif ($this->tokenizer->peek()->getVal() == "[") {
+                // {varName}[{expression}]
+                $this->outputNextTokenInXML(); // [
+                $this->compileExpression();
+                $this->outputNextTokenInXML(); // ]
+            }
+        }
+        fwrite($this->file, "</term>\n");
+    }
+
+    private function compileExpressionList() {
+        fwrite($this->file, "<expressionList>\n");
+        if ($this->tokenizer->peek()->getVal() != ")") {
+            $this->compileExpression();
+            while ($this->tokenizer->peek()->getVal() == ",") {
+                $this->outputNextTokenInXML(); // ,
+                $this->compileExpression();
+            }
+        }
+        fwrite($this->file, "</expressionList>\n");
+    }
+
+    /**
+     * 次のトークンを取得し、トークン情報をXML形式に出力する
+     */
+    private function outputNextTokenInXML()
+    {
+        $this->tokenizer->hasMoreTokens() ? $this->tokenizer->advance() : null;
+        $xml = $this->tokenizer->getCurrentTokenInXML();
+        fwrite($this->file, "{$xml}\n");
+    }
 }
 ?>
