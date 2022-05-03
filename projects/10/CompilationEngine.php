@@ -217,11 +217,13 @@ class CompilationEngine {
                 $this->outputNextTokenInXML(); // .
                 $this->outputNextTokenInXML(); // {subroutineName}
                 $this->outputNextTokenInXML(); // (
+                $this->compileExpressionList();
                 $this->outputNextTokenInXML(); // )
             } elseif ($this->tokenizer->peek()->getVal() == "(") {
                 // subroutineCall
                 // subroutineName();
                 $this->outputNextTokenInXML(); // (
+                $this->compileExpressionList();
                 $this->outputNextTokenInXML(); // )
             } elseif ($this->tokenizer->peek()->getVal() == "[") {
                 // {varName}[{expression}]

@@ -20,9 +20,9 @@ class Token {
             "&" => "&amp;"
         ]; 
 
-        if (!$val = $this->valsForXML[$this->val]) {
+        if (!$val = $valsForXML[$this->val]) {
             $val = $this->val;
-        } 
+        }
 
         if ($this->getType() == "STRING_CONST") {
             // double quotesを削除する
@@ -52,7 +52,7 @@ class Token {
             "=",
             "~"
         ];
-        if (in_array($this->getVal(), $operationSymbols)) {
+        if (in_array($this->val, $operationSymbols)) {
             return true;
         }
         return false;
@@ -70,7 +70,7 @@ class Token {
             "while",
             "return",
         ];
-        if (in_array($this->getVal(), $statementKeyWords)) {
+        if (in_array($this->val, $statementKeyWords)) {
             return true;
         }
         return false;
@@ -361,6 +361,5 @@ class JackTokenizer {
         return $this->currentToken->genXml();
     }
 }
-
 ?>
 
